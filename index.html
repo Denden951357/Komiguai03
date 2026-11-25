@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>人口密度マスター！ 〜1km²あたりでくらべよう〜</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700;800;900&display=swap');
+    
+    body {
+      font-family: 'M PLUS Rounded 1c', sans-serif;
+      background-color: #0f172a;
+      user-select: none;
+      -webkit-user-select: none;
+      overflow: hidden;
+    }
+
+    /* 16:9 のChromebook画面比率を保つコンテナ */
+    .game-wrapper {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .game-container {
+      width: 100%;
+      max-width: 1200px;
+      aspect-ratio: 16 / 9;
+      max-height: 95vh;
+      background-color: #f0fdf4;
+      border: 4px solid #34d399;
+      border-radius: 1.5rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      position: relative;
+      display: flex;
+      flex-col;
+      overflow: hidden;
+    }
+
+    .person-icon {
+      cursor: grab;
+      touch-action: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    
+    .person-icon:active {
+      cursor: grabbing;
+      transform: scale(1.25);
+    }
+
+    .drop-zone {
+      transition: all 0.2s ease;
+    }
+
+    .drop-zone.drag-over {
+      background-color: #bbf7d0 !important;
+      border-color: #16a34a !important;
+      transform: scale(1.02);
+    }
+
+    /* アニメーション用 */
+    @keyframes pulse-subtle {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.03); }
+    }
+    .pulse-btn {
+      animation: pulse-subtle 2s infinite ease-in-out;
+    }
+  </style>
+</head>
+<body class="w-full h-screen">
+
+  <div class="game-wrapper">
+    <div class="game-container flex flex-col justify-between p-4 md:p-6 relative">
+      
+      <!-- ヘッダー -->
+      <header class="flex justify-between items-center bg-white/90 backdrop-blur-md px-6 py-2.5 rounded-2xl shadow-md border-2 border-emerald-200 shrink-0">
+        <div class="flex items-center gap-3">
+          <span class="bg-emerald-500 text-white font-black px-3 py-1 rounded-xl text-sm shadow-sm">算数 5年</span>
+          <h1 id="stage-title" class="text-xl md:text-2xl font-black text-emerald-900">人口密度マスター！</h1>
+        </div>
+        <div class="flex items-center gap-6">
+          <div class="text-base md:text-lg font-bold text-slate-700">
+            スコア: <span id="score-display" class="text-2xl md:text-3xl font-black text-emerald-600">0</span> 点
+          </div>
+          <div id="progress-dots" class="flex gap-2">
+            <!-- 進捗ドットがJSで入ります -->
+          </div>
+        </div>
+      </header>
+
+      <!-- メインコンテンツ領域 -->
+      <main id="main-content" class="flex-1 my-3 bg-white/80 backdrop-blur-sm rounded-2xl p-4 md:p-6 shadow-inner border border-emerald-100 flex flex-col justify-center items-center relative overflow-hidden">
+        <!-- JSで動的にステージ内容を描画 -->
+      </main>
+
+      <!-- フッター -->
+      <footer class="bg-white/90 backdrop-blur-md px-6 py-3 rounded-2xl shadow-md border-2 border-emerald-200 flex justify-between items-center shrink-0">
+        <div id="hint-box" class="flex items-center gap-3 text-slate-700 font-bold text-base md:text-lg">
+          <i class="fa-solid fa-lightbulb text-amber-400 text-2xl animate-bounce"></i>
+          <span id="hint-text">指示にしたがって進めよう！</span>
+        </div>
+        <button id="next-btn" onclick="nextStage()" class="hidden bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-black px-6 py-2.5 rounded-xl text-lg shadow-lg hover:scale-105 active:scale-95 transition flex items-center gap-2">
+          つぎへ <i class="fa-solid fa-arrow-right"></i>
+        </button>
+      </footer>
+
+      <!-- フィードバック（正解/不正解）オーバーレイ -->
+      <div id="feedback-overlay" class="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-all duration-300 z-50">
+        <div id="feedback-badge" class="transform scale-50 transition-all duration-300 bg-white/95 backdrop-blur-md rounded-3xl p-8 shadow-2xl flex flex-col items-center border-4">
+          <i id="feedback-icon" class="text-8xl mb-2"></i>
+          <p id="feedback-text" class="text-3xl font-black text-center"></p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // ステージデータ構成
+    const stages = [
+      {
+        type: 'intro',
+        title: '復習：うさぎ小屋の混みぐあい',
+        instruction: '1㎡あたりの数をそろえると比べられたね！',
+        html: `
+          <div class="text-center max-w-3xl flex flex-col items-center">
+            <h2 class="text-2xl md:text-3xl font-black text-emerald-900 mb-4">前の時間に学んだことを思い出そう！</h2>
+            <div class="grid grid-cols-2 gap-6 w-full mb-6">
+              <div class="bg-amber-50 border-3 border-amber-300 rounded-2xl p-4 shadow-sm flex flex-col items-center">
+                <p class="font-extrabold text-xl text-amber-900 mb-1">小屋 A</p>
+                <p class="text-base text-slate-600 font-bold">6㎡ に 9ひき</p>
+                <div class="bg-white rounded-xl py-2 px-4 mt-2 border border-amber-200">
+                  <p class="text-2xl font-black text-amber-600">9 ÷ 6 = 1.5 <span class="text-base font-bold">ひき/㎡</span></p>
+                </div>
+              </div>
+              <div class="bg-amber-50 border-3 border-amber-300 rounded-2xl p-4 shadow-sm flex flex-col items-center">
+                <p class="font-extrabold text-xl text-amber-900 mb-1">小屋 C</p>
+                <p class="text-base text-slate-600 font-bold">5㎡ に 8ひき</p>
+                <div class="bg-white rounded-xl py-2 px-4 mt-2 border border-amber-200">
+                  <p class="text-2xl font-black text-amber-600">8 ÷ 5 = 1.6 <span class="text-base font-bold">ひき/㎡</span></p>
+                </div>
+              </div>
+            </div>
+            <p class="text-lg md:text-xl text-slate-700 font-extrabold mb-6 leading-relaxed">
+              「人」がたくさん住んでいる町も、同じように<br>
+              <span class="text-emerald-600 bg-emerald-100 px-3 py-1 rounded-xl border border-emerald-300 text-2xl">1km² あたりの人数</span> にそろえると比べられるよ！
+            </p>
+            <button onclick="nextStage()" class="pulse-btn bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-black px-10 py-3.5 rounded-2xl text-2xl shadow-xl hover:scale-105 active:scale-95 transition flex items-center gap-3">
+              チャレンジをはじめる！ <i class="fa-solid fa-circle-play"></i>
+            </button>
+          </div>
+        `
+      },
+      {
+        type: 'drag',
+        town: 'A',
+        title: '操作①：Aの町（12人 / 3km²）',
+        instruction: '人マークをドラッグして、3つの1km²マスに同じ数ずつ分けよう！',
+        totalPeople: 12,
+        gridCount: 3,
+        color: 'emerald',
+        correctPerCell: 4,
+        formulaText: '12 ÷ 3 = '
+      },
+      {
+        type: 'drag',
+        town: 'B',
+        title: '操作②：Bの町（12人 / 4km²）',
+        instruction: '人マークをドラッグして、4つの1km²マスに同じ数ずつ分けよう！',
+        totalPeople: 12,
+        gridCount: 4,
+        color: 'amber',
+        correctPerCell: 3,
+        formulaText: '12 ÷ 4 = '
+      },
+      {
+        type: 'quiz_choice',
+        title: 'くらべてみよう！',
+        instruction: '1km²あたりの人数が多い、混んでいる町はどちらかな？',
+        question: 'Aの町（1km²あたり4人）と Bの町（1km²あたり3人）、どちらが混んでいる？',
+        options: [
+          { label: 'Aの町 の方が混んでいる', correct: true, desc: '正解！1km²あたり4人のAの町の方が混んでいます！' },
+          { label: 'Bの町 の方が混んでいる', correct: false, desc: 'Bの町は1km²あたり3人だよ。' },
+          { label: 'どちらも同じ混みぐあい', correct: false, desc: '1km²あたりの人数を比べてみよう！' }
+        ]
+      },
+      {
+        type: 'calc',
+        title: '北海道の 1km²あたりの人口を求めよう',
+        instruction: '人口密度 ＝ 人口 ÷ 面積（万人を人に直して計算！）',
+        question: '北海道（人口 514万人 ＝ 5,140,000人 / 面積 83,422km²）の人口密度は？',
+        formula: '5,140,000 ÷ 83,422 ＝ 61.61...',
+        target: '約 62 人/km²',
+        options: ['約 62 人/km²', '約 650 人/km²', '約 120 人/km²'],
+        answerIdx: 0,
+        note: '※電卓計算のあと、上から2けたの概数（四捨五入）にしよう！'
+      },
+      {
+        type: 'calc',
+        title: '沖縄県の 1km²あたりの人口を求めよう',
+        instruction: '人口密度 ＝ 人口 ÷ 面積（万人を人に直して計算！）',
+        question: '沖縄県（人口 149万人 ＝ 1,490,000人 / 面積 2,282km²）の人口密度は？',
+        formula: '1,490,000 ÷ 2,282 ＝ 652.93...',
+        target: '約 650 人/km²',
+        options: ['約 62 人/km²', '約 650 人/km²', '約 300 人/km²'],
+        answerIdx: 1,
+        note: '※上から2けたの概数（四捨五入）にしよう！'
+      },
+      {
+        type: 'quiz_choice',
+        title: '人口密度でくらべよう！',
+        instruction: '1km²あたりの人数が多いのはどちらの道県？',
+        question: '北海道（約62人/km²）と 沖縄県（約650人/km²）、人口密度が高い（混んでいる）のは？',
+        options: [
+          { label: '北海道', correct: false, desc: '北海道はとても面積が広いため、人口密度は小さくなります。' },
+          { label: '沖縄県', correct: true, desc: '大正解！1km²あたり約650人の沖縄県の方が圧倒的に混んでいます！' }
+        ]
+      },
+      {
+        type: 'practice',
+        title: 'たしかめ：自分で人口密度を求めよう',
+        instruction: 'さくら町とみどり町、どちらの町が混んでいるか比べよう！',
+        data: [
+          { name: 'さくら町', pop: '10,000人', area: '20km²', calc: '10,000 ÷ 20 ＝ 500 人/km²' },
+          { name: 'みどり町', pop: '12,000人', area: '30km²', calc: '12,000 ÷ 30 ＝ 400 人/km²' }
+        ],
+        question: '1km²あたりの人数が多く、混んでいるのはどちらの町？',
+        options: [
+          { label: 'さくら町（500 人/km²）', correct: true },
+          { label: 'みどり町（400 人/km²）', correct: false }
+        ]
+      },
+      {
+        type: 'ending',
+        title: '学習のまとめ',
+        instruction: '今日の学習内容をふりかえろう！',
+        html: `
+          <div class="text-center max-w-2xl flex flex-col items-center">
+            <i class="fa-solid fa-award text-amber-400 text-7xl mb-2 animate-bounce"></i>
+            <h2 class="text-3xl font-black text-emerald-900 mb-2">素晴らしい！全ステージクリア！</h2>
+            <p class="text-lg text-slate-600 font-bold mb-6">人口密度の計算と比べ方がマスターできました！</p>
+            
+            <div class="bg-emerald-100/80 border-2 border-emerald-300 rounded-2xl p-5 text-left w-full mb-6 space-y-3">
+              <div class="flex items-start gap-3">
+                <i class="fa-solid fa-star text-amber-500 text-xl mt-0.5"></i>
+                <p class="font-extrabold text-slate-800 text-base md:text-lg">
+                  <strong class="text-emerald-800">人口密度</strong> ＝ 1km²あたりの人口
+                </p>
+              </div>
+              <div class="flex items-start gap-3">
+                <i class="fa-solid fa-star text-amber-500 text-xl mt-0.5"></i>
+                <p class="font-extrabold text-slate-800 text-base md:text-lg">
+                  <strong class="text-emerald-800">公式</strong> ＝ 人口 ÷ 面積
+                </p>
+              </div>
+              <p class="text-sm text-slate-600 font-bold pl-8">
+                ※面積や人口が違っても、1km²あたりに揃えることで正確に混みぐあいを比べられるよ！
+              </p>
+            </div>
+
+            <button onclick="restartGame()" class="bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-black px-8 py-3 rounded-2xl text-xl shadow-xl hover:scale-105 active:scale-95 transition flex items-center gap-2">
+              もう一度あそぶ <i class="fa-solid fa-rotate-right"></i>
+            </button>
+          </div>
+        `
+      }
+    ];
+
+    let currentStage = 0;
+    let score = 0;
+    let draggedElement = null;
+    let touchTarget = null;
+
+    window.onload = () => {
+      renderProgressDots();
+      loadStage(currentStage);
+    };
+
+    function renderProgressDots() {
+      const dotsContainer = document.getElementById('progress-dots');
+      dotsContainer.innerHTML = '';
+      stages.forEach((_, idx) => {
+        const dot = document.createElement('div');
+        dot.className = `w-3.5 h-3.5 rounded-full ${idx === currentStage ? 'bg-emerald-500 scale-125 ring-2 ring-emerald-300' : idx < currentStage ? 'bg-emerald-300' : 'bg-slate-200'} transition-all duration-300`;
+        dotsContainer.appendChild(dot);
+      });
+    }
+
+    function loadStage(idx) {
+      renderProgressDots();
+      const stage = stages[idx];
+      document.getElementById('stage-title').innerText = stage.title;
+      document.getElementById('hint-text').innerText = stage.instruction;
+      document.getElementById('next-btn').classList.add('hidden');
+
+      const main = document.getElementById('main-content');
+      main.innerHTML = '';
+
+      if (stage.type === 'intro' || stage.type === 'ending') {
+        main.innerHTML = stage.html;
+      } else if (stage.type === 'drag') {
+        renderDragStage(stage, main);
+      } else if (stage.type === 'quiz_choice') {
+        renderQuizStage(stage, main);
+      } else if (stage.type === 'calc') {
+        renderCalcStage(stage, main);
+      } else if (stage.type === 'practice') {
+        renderPracticeStage(stage, main);
+      }
+    }
+
+    // ドラッグ＆ドロップステージ
+    function renderDragStage(stage, container) {
+      const isEmerald = stage.color === 'emerald';
+      const colorBg = isEmerald ? 'bg-emerald-50 border-emerald-300' : 'bg-amber-50 border-amber-300';
+      const iconColor = isEmerald ? 'text-emerald-600' : 'text-amber-700';
+
+      const wrapper = document.createElement('div');
+      wrapper.className = 'w-full h-full flex flex-col justify-between items-center';
+
+      // マス目（1km²）
+      const gridContainer = document.createElement('div');
+      gridContainer.className = `flex gap-4 w-full justify-center my-auto`;
+
+      for (let i = 0; i < stage.gridCount; i++) {
+        const zone = document.createElement('div');
+        zone.className = `drop-zone border-4 border-dashed rounded-2xl w-40 md:w-48 h-44 md:h-52 flex flex-col items-center p-2 relative ${colorBg}`;
+        zone.dataset.index = i;
+        zone.innerHTML = `
+          <span class="bg-white/90 font-black text-xs md:text-sm px-3 py-0.5 rounded-full border border-slate-300 shadow-sm mb-1 text-slate-700">1km²</span>
+          <div class="people-holder flex flex-wrap gap-1.5 justify-center items-center flex-1 w-full overflow-hidden"></div>
+        `;
+        
+        zone.addEventListener('dragover', handleDragOver);
+        zone.addEventListener('dragleave', handleDragLeave);
+        zone.addEventListener('drop', (e) => handleDrop(e, stage));
+        gridContainer.appendChild(zone);
+      }
+
+      // 未配置の人マークプール
+      const pool = document.createElement('div');
+      pool.id = 'people-pool';
+      pool.className = 'bg-slate-100/80 border-2 border-slate-300 rounded-2xl p-3 flex flex-wrap gap-2 md:gap-3 justify-center items-center w-full max-w-3xl min-h-[75px] drop-zone';
+      pool.addEventListener('dragover', handleDragOver);
+      pool.addEventListener('dragleave', handleDragLeave);
+      pool.addEventListener('drop', (e) => handleDrop(e, stage));
+
+      for (let i = 0; i < stage.totalPeople; i++) {
+        const person = createPersonIcon(i, iconColor);
+        pool.appendChild(person);
+      }
+
+      // 式と入力・判定ボタン
+      const ctrlBar = document.createElement('div');
+      ctrlBar.className = 'flex items-center gap-6 mt-2';
+      ctrlBar.innerHTML = `
+        <div class="text-lg md:text-xl font-black text-slate-700 bg-white px-5 py-2 rounded-2xl border-2 border-slate-200 shadow-sm flex items-center gap-2">
+          式：${stage.formulaText} <span id="answer-box" class="inline-block w-12 border-b-4 border-emerald-500 text-center text-emerald-600 font-black text-2xl">？</span> 人/km²
+        </div>
+        <button id="check-drag-btn" onclick="checkDragAnswer()" class="bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-black px-6 py-2.5 rounded-xl text-lg shadow-md transition flex items-center gap-2">
+          たしかめる <i class="fa-solid fa-circle-check"></i>
+        </button>
+      `;
+
+      wrapper.appendChild(gridContainer);
+      wrapper.appendChild(pool);
+      wrapper.appendChild(ctrlBar);
+      container.appendChild(wrapper);
+    }
+
+    function createPersonIcon(id, colorClass) {
+      const icon = document.createElement('i');
+      icon.className = `fa-solid fa-user text-3xl md:text-4xl person-icon ${colorClass} p-1`;
+      icon.draggable = true;
+      icon.id = `person-${id}`;
+      
+      icon.addEventListener('dragstart', (e) => {
+        draggedElement = icon;
+        e.dataTransfer.setData('text/plain', icon.id);
+      });
+
+      // タッチイベント（Chromebook画面直接操作対応）
+      icon.addEventListener('touchstart', handleTouchStart, {passive: false});
+      icon.addEventListener('touchmove', handleTouchMove, {passive: false});
+      icon.addEventListener('touchend', handleTouchEnd);
+
+      return icon;
+    }
+
+    function handleDragOver(e) {
+      e.preventDefault();
+      e.currentTarget.classList.add('drag-over');
+    }
+
+    function handleDragLeave(e) {
+      e.currentTarget.classList.remove('drag-over');
+    }
+
+    function handleDrop(e, stage) {
+      e.preventDefault();
+      e.currentTarget.classList.remove('drag-over');
+      if (!draggedElement) return;
+
+      const target = e.currentTarget;
+      if (target.id === 'people-pool') {
+        target.appendChild(draggedElement);
+      } else {
+        const holder = target.querySelector('.people-holder');
+        holder.appendChild(draggedElement);
+      }
+      updateDragState(stage);
+    }
+
+    function handleTouchStart(e) {
+      touchTarget = e.currentTarget;
+      e.preventDefault();
+    }
+    
+    function handleTouchMove(e) {
+      if (!touchTarget) return;
+      e.preventDefault();
+      const touch = e.touches[0];
+      touchTarget.style.position = 'fixed';
+      touchTarget.style.left = `${touch.clientX - 20}px`;
+      touchTarget.style.top = `${touch.clientY - 20}px`;
+      touchTarget.style.zIndex = '1000';
+    }
+
+    function handleTouchEnd(e) {
+      if (!touchTarget) return;
+      touchTarget.style.position = '';
+      touchTarget.style.left = '';
+      touchTarget.style.top = '';
+      touchTarget.style.zIndex = '';
+      
+      const touch = e.changedTouches[0];
+      const elem = document.elementFromPoint(touch.clientX, touch.clientY);
+      const zone = elem?.closest('.drop-zone');
+      
+      if (zone) {
+        if (zone.id === 'people-pool') {
+          zone.appendChild(touchTarget);
+        } else {
+          const holder = zone.querySelector('.people-holder');
+          holder.appendChild(touchTarget);
+        }
+      }
+      touchTarget = null;
+      updateDragState(stages[currentStage]);
+    }
+
+    function updateDragState(stage) {
+      const zones = document.querySelectorAll('.drop-zone:not(#people-pool)');
+      let counts = [];
+      zones.forEach(z => {
+        counts.push(z.querySelector('.people-holder').children.length);
+      });
+
+      const isAllSame = counts.every(c => c === counts[0] && c > 0);
+      const totalInZones = counts.reduce((a, b) => a + b, 0);
+      const ansBox = document.getElementById('answer-box');
+
+      if (isAllSame && totalInZones === stage.totalPeople) {
+        ansBox.innerText = counts[0];
+      } else {
+        ansBox.innerText = '？';
+      }
+    }
+
+    function checkDragAnswer() {
+      const stage = stages[currentStage];
+      const zones = document.querySelectorAll('.drop-zone:not(#people-pool)');
+      let counts = [];
+      zones.forEach(z => {
+        counts.push(z.querySelector('.people-holder').children.length);
+      });
+
+      const isCorrect = counts.every(c => c === stage.correctPerCell);
+
+      if (isCorrect) {
+        showFeedback(true, '正解！均等に分けられたね！');
+        addScore(100);
+        document.getElementById('next-btn').classList.remove('hidden');
+      } else {
+        showFeedback(false, '全ての1km²マスに同じ人数が入るように動かそう！');
+      }
+    }
+
+    // 選択肢クイズステージ
+    function renderQuizStage(stage, container) {
+      const box = document.createElement('div');
+      box.className = 'text-center max-w-2xl w-full flex flex-col items-center';
+      box.innerHTML = `
+        <h2 class="text-2xl md:text-3xl font-black text-slate-800 mb-6 leading-snug">${stage.question}</h2>
+        <div class="grid grid-cols-1 gap-4 w-full mb-2">
+          ${stage.options.map((opt, i) => `
+            <button onclick="selectQuizOption(${i})" class="quiz-opt-btn bg-white hover:bg-emerald-50 active:bg-emerald-100 border-3 border-emerald-200 hover:border-emerald-400 rounded-2xl p-4 text-xl font-black text-slate-700 shadow-sm transition flex justify-between items-center px-8">
+              <span>${opt.label}</span>
+              <i class="fa-regular fa-circle-check text-emerald-500 text-2xl"></i>
+            </button>
+          `).join('')}
+        </div>
+      `;
+      container.appendChild(box);
+    }
+
+    function selectQuizOption(idx) {
+      const stage = stages[currentStage];
+      const selected = stage.options[idx];
+      
+      if (selected.correct) {
+        showFeedback(true, selected.desc);
+        addScore(100);
+        document.getElementById('next-btn').classList.remove('hidden');
+      } else {
+        showFeedback(false, selected.desc);
+      }
+    }
+
+    // 計算ステージ
+    function renderCalcStage(stage, container) {
+      const box = document.createElement('div');
+      box.className = 'text-center max-w-2xl w-full flex flex-col items-center';
+      box.innerHTML = `
+        <div class="bg-emerald-100/70 border-2 border-emerald-300 rounded-2xl p-4 mb-6 w-full shadow-sm">
+          <p class="text-xl md:text-2xl font-black text-emerald-950 mb-2">${stage.question}</p>
+          <div class="bg-white rounded-xl p-3 font-mono text-xl md:text-2xl font-bold text-slate-800 border border-emerald-200 shadow-inner">
+            ${stage.formula}
+          </div>
+          <p class="text-xs md:text-sm text-slate-600 font-bold mt-2">${stage.note}</p>
+        </div>
+
+        <p class="font-black text-lg text-slate-700 mb-3">上から2けたの概数（四捨五入）にすると？</p>
+        <div class="flex justify-center gap-4 w-full">
+          ${stage.options.map((opt, i) => `
+            <button onclick="selectCalcOption(${i})" class="bg-white hover:bg-emerald-50 active:bg-emerald-100 border-3 border-emerald-300 hover:border-emerald-500 font-black text-2xl text-emerald-800 py-3.5 px-6 rounded-2xl shadow-md transition hover:scale-105 active:scale-95">
+              ${opt}
+            </button>
+          `).join('')}
+        </div>
+      `;
+      container.appendChild(box);
+    }
+
+    function selectCalcOption(idx) {
+      const stage = stages[currentStage];
+      if (idx === stage.answerIdx) {
+        showFeedback(true, `正解！ ${stage.target} です！`);
+        addScore(100);
+        document.getElementById('next-btn').classList.remove('hidden');
+      } else {
+        showFeedback(false, '四捨五入する位に注目してもう一度考えよう！');
+      }
+    }
+
+    // たしかめ練習ステージ
+    function renderPracticeStage(stage, container) {
+      const box = document.createElement('div');
+      box.className = 'text-center max-w-2xl w-full flex flex-col items-center';
+      box.innerHTML = `
+        <div class="grid grid-cols-2 gap-4 w-full mb-6">
+          ${stage.data.map(d => `
+            <div class="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-3.5 shadow-sm">
+              <p class="font-black text-xl text-emerald-900">${d.name}</p>
+              <p class="text-sm font-bold text-slate-600">人口 ${d.pop} / 面積 ${d.area}</p>
+              <p class="text-sm font-mono text-emerald-700 mt-2 font-bold bg-white/90 py-1.5 px-2 rounded-xl border border-emerald-200">${d.calc}</p>
+            </div>
+          `).join('')}
+        </div>
+        <p class="text-xl font-black text-slate-800 mb-4">${stage.question}</p>
+        <div class="flex justify-center gap-6 w-full">
+          ${stage.options.map((opt, i) => `
+            <button onclick="selectPracticeOption(${i})" class="bg-white hover:bg-emerald-50 active:bg-emerald-100 border-3 border-emerald-300 hover:border-emerald-500 font-black text-xl text-slate-800 py-3.5 px-8 rounded-2xl shadow-md transition hover:scale-105 active:scale-95">
+              ${opt.label}
+            </button>
+          `).join('')}
+        </div>
+      `;
+      container.appendChild(box);
+    }
+
+    function selectPracticeOption(idx) {
+      const stage = stages[currentStage];
+      const opt = stage.options[idx];
+      if (opt.correct) {
+        showFeedback(true, '正解！さくら町（500人/km²）の方が混んでいます！');
+        addScore(100);
+        document.getElementById('next-btn').classList.remove('hidden');
+      } else {
+        showFeedback(false, '計算結果（500人/km² と 400人/km²）を比べてみよう！');
+      }
+    }
+
+    function addScore(points) {
+      score += points;
+      document.getElementById('score-display').innerText = score;
+    }
+
+    function showFeedback(isSuccess, text) {
+      const overlay = document.getElementById('feedback-overlay');
+      const badge = document.getElementById('feedback-badge');
+      const icon = document.getElementById('feedback-icon');
+      const msg = document.getElementById('feedback-text');
+
+      if (isSuccess) {
+        badge.className = 'transform scale-100 transition-all duration-300 bg-white/95 backdrop-blur-md rounded-3xl p-8 shadow-2xl flex flex-col items-center border-4 border-emerald-400 text-emerald-600';
+        icon.className = 'fa-solid fa-circle-check text-8xl mb-2 text-emerald-500 animate-bounce';
+      } else {
+        badge.className = 'transform scale-100 transition-all duration-300 bg-white/95 backdrop-blur-md rounded-3xl p-8 shadow-2xl flex flex-col items-center border-4 border-rose-400 text-rose-600';
+        icon.className = 'fa-solid fa-circle-xmark text-8xl mb-2 text-rose-500';
+      }
+
+      msg.innerText = text;
+      overlay.classList.remove('opacity-0', 'pointer-events-none');
+
+      setTimeout(() => {
+        overlay.classList.add('opacity-0', 'pointer-events-none');
+      }, 1800);
+    }
+
+    function nextStage() {
+      if (currentStage < stages.length - 1) {
+        currentStage++;
+        loadStage(currentStage);
+      }
+    }
+
+    function restartGame() {
+      currentStage = 0;
+      score = 0;
+      document.getElementById('score-display').innerText = score;
+      loadStage(currentStage);
+    }
+  </script>
+</body>
+</html>
+```eof
+
+### 画面右側の「Preview」ボタンについて
+画面右上のエディタエリアにある **`Preview`** ボタンを押すことで、このWebアプリのプレビュー表示と操作テストを実行していただけます。
