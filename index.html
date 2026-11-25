@@ -63,7 +63,6 @@
       transform: scale(1.02);
     }
 
-    /* アニメーション用 */
     @keyframes pulse-subtle {
       0%, 100% { transform: scale(1); }
       50% { transform: scale(1.03); }
@@ -89,7 +88,7 @@
             スコア: <span id="score-display" class="text-2xl md:text-3xl font-black text-emerald-600">0</span> 点
           </div>
           <div id="progress-dots" class="flex gap-2">
-            <!-- 進捗ドットがJSで入ります -->
+            <!-- 進捗ドット -->
           </div>
         </div>
       </header>
@@ -122,7 +121,7 @@
   </div>
 
   <script>
-    // ステージデータ構成
+    // ステージデータ構成（単位の「/」表記を除去し「1㎡あたり〜」「1km²あたり〜」に変更）
     const stages = [
       {
         type: 'intro',
@@ -136,14 +135,14 @@
                 <p class="font-extrabold text-xl text-amber-900 mb-1">小屋 A</p>
                 <p class="text-base text-slate-600 font-bold">6㎡ に 9ひき</p>
                 <div class="bg-white rounded-xl py-2 px-4 mt-2 border border-amber-200">
-                  <p class="text-2xl font-black text-amber-600">9 ÷ 6 = 1.5 <span class="text-base font-bold">ひき/㎡</span></p>
+                  <p class="text-2xl font-black text-amber-600">9 ÷ 6 = 1.5 <span class="text-base font-bold">（1㎡あたり1.5ひき）</span></p>
                 </div>
               </div>
               <div class="bg-amber-50 border-3 border-amber-300 rounded-2xl p-4 shadow-sm flex flex-col items-center">
                 <p class="font-extrabold text-xl text-amber-900 mb-1">小屋 C</p>
                 <p class="text-base text-slate-600 font-bold">5㎡ に 8ひき</p>
                 <div class="bg-white rounded-xl py-2 px-4 mt-2 border border-amber-200">
-                  <p class="text-2xl font-black text-amber-600">8 ÷ 5 = 1.6 <span class="text-base font-bold">ひき/㎡</span></p>
+                  <p class="text-2xl font-black text-amber-600">8 ÷ 5 = 1.6 <span class="text-base font-bold">（1㎡あたり1.6ひき）</span></p>
                 </div>
               </div>
             </div>
@@ -193,22 +192,22 @@
       {
         type: 'calc',
         title: '北海道の 1km²あたりの人口を求めよう',
-        instruction: '人口密度 ＝ 人口 ÷ 面積（万人を人に直して計算！）',
+        instruction: '1km²あたりの人口 ＝ 人口 ÷ 面積（万人を人に直して計算！）',
         question: '北海道（人口 514万人 ＝ 5,140,000人 / 面積 83,422km²）の人口密度は？',
         formula: '5,140,000 ÷ 83,422 ＝ 61.61...',
-        target: '約 62 人/km²',
-        options: ['約 62 人/km²', '約 650 人/km²', '約 120 人/km²'],
+        target: '1km²あたり 約62人',
+        options: ['1km²あたり 約62人', '1km²あたり 約650人', '1km²あたり 約120人'],
         answerIdx: 0,
         note: '※電卓計算のあと、上から2けたの概数（四捨五入）にしよう！'
       },
       {
         type: 'calc',
         title: '沖縄県の 1km²あたりの人口を求めよう',
-        instruction: '人口密度 ＝ 人口 ÷ 面積（万人を人に直して計算！）',
+        instruction: '1km²あたりの人口 ＝ 人口 ÷ 面積（万人を人に直して計算！）',
         question: '沖縄県（人口 149万人 ＝ 1,490,000人 / 面積 2,282km²）の人口密度は？',
         formula: '1,490,000 ÷ 2,282 ＝ 652.93...',
-        target: '約 650 人/km²',
-        options: ['約 62 人/km²', '約 650 人/km²', '約 300 人/km²'],
+        target: '1km²あたり 約650人',
+        options: ['1km²あたり 約62人', '1km²あたり 約650人', '1km²あたり 約300人'],
         answerIdx: 1,
         note: '※上から2けたの概数（四捨五入）にしよう！'
       },
@@ -216,7 +215,7 @@
         type: 'quiz_choice',
         title: '人口密度でくらべよう！',
         instruction: '1km²あたりの人数が多いのはどちらの道県？',
-        question: '北海道（約62人/km²）と 沖縄県（約650人/km²）、人口密度が高い（混んでいる）のは？',
+        question: '北海道（1km²あたり約62人）と 沖縄県（1km²あたり約650人）、人口密度が高い（混んでいる）のは？',
         options: [
           { label: '北海道', correct: false, desc: '北海道はとても面積が広いため、人口密度は小さくなります。' },
           { label: '沖縄県', correct: true, desc: '大正解！1km²あたり約650人の沖縄県の方が圧倒的に混んでいます！' }
@@ -227,13 +226,13 @@
         title: 'たしかめ：自分で人口密度を求めよう',
         instruction: 'さくら町とみどり町、どちらの町が混んでいるか比べよう！',
         data: [
-          { name: 'さくら町', pop: '10,000人', area: '20km²', calc: '10,000 ÷ 20 ＝ 500 人/km²' },
-          { name: 'みどり町', pop: '12,000人', area: '30km²', calc: '12,000 ÷ 30 ＝ 400 人/km²' }
+          { name: 'さくら町', pop: '10,000人', area: '20km²', calc: '10,000 ÷ 20 ＝ 1km²あたり 500人' },
+          { name: 'みどり町', pop: '12,000人', area: '30km²', calc: '12,000 ÷ 30 ＝ 1km²あたり 400人' }
         ],
         question: '1km²あたりの人数が多く、混んでいるのはどちらの町？',
         options: [
-          { label: 'さくら町（500 人/km²）', correct: true },
-          { label: 'みどり町（400 人/km²）', correct: false }
+          { label: 'さくら町（1km²あたり 500人）', correct: true },
+          { label: 'みどり町（1km²あたり 400人）', correct: false }
         ]
       },
       {
@@ -260,7 +259,7 @@
                 </p>
               </div>
               <p class="text-sm text-slate-600 font-bold pl-8">
-                ※面積や人口が違っても、1km²あたりに揃えることで正確に混みぐあいを比べられるよ！
+                ※面積や人口が違っても、1km²あたりにそろえることで正確に混みぐあいを比べられるよ！
               </p>
             </div>
 
@@ -360,8 +359,8 @@
       const ctrlBar = document.createElement('div');
       ctrlBar.className = 'flex items-center gap-6 mt-2';
       ctrlBar.innerHTML = `
-        <div class="text-lg md:text-xl font-black text-slate-700 bg-white px-5 py-2 rounded-2xl border-2 border-slate-200 shadow-sm flex items-center gap-2">
-          式：${stage.formulaText} <span id="answer-box" class="inline-block w-12 border-b-4 border-emerald-500 text-center text-emerald-600 font-black text-2xl">？</span> 人/km²
+        <div class="text-base md:text-lg font-black text-slate-700 bg-white px-5 py-2 rounded-2xl border-2 border-slate-200 shadow-sm flex items-center gap-2">
+          式：${stage.formulaText} <span id="answer-box" class="inline-block w-12 border-b-4 border-emerald-500 text-center text-emerald-600 font-black text-2xl">？</span> （1km²あたり<span id="answer-unit-box">？</span>人）
         </div>
         <button id="check-drag-btn" onclick="checkDragAnswer()" class="bg-emerald-500 hover:bg-emerald-600 active:bg-emerald-700 text-white font-black px-6 py-2.5 rounded-xl text-lg shadow-md transition flex items-center gap-2">
           たしかめる <i class="fa-solid fa-circle-check"></i>
@@ -385,7 +384,7 @@
         e.dataTransfer.setData('text/plain', icon.id);
       });
 
-      // タッチイベント（Chromebook画面直接操作対応）
+      // タッチイベント対応
       icon.addEventListener('touchstart', handleTouchStart, {passive: false});
       icon.addEventListener('touchmove', handleTouchMove, {passive: false});
       icon.addEventListener('touchend', handleTouchEnd);
@@ -465,11 +464,14 @@
       const isAllSame = counts.every(c => c === counts[0] && c > 0);
       const totalInZones = counts.reduce((a, b) => a + b, 0);
       const ansBox = document.getElementById('answer-box');
+      const unitBox = document.getElementById('answer-unit-box');
 
       if (isAllSame && totalInZones === stage.totalPeople) {
         ansBox.innerText = counts[0];
+        unitBox.innerText = counts[0];
       } else {
         ansBox.innerText = '？';
+        unitBox.innerText = '？';
       }
     }
 
@@ -539,7 +541,7 @@
         <p class="font-black text-lg text-slate-700 mb-3">上から2けたの概数（四捨五入）にすると？</p>
         <div class="flex justify-center gap-4 w-full">
           ${stage.options.map((opt, i) => `
-            <button onclick="selectCalcOption(${i})" class="bg-white hover:bg-emerald-50 active:bg-emerald-100 border-3 border-emerald-300 hover:border-emerald-500 font-black text-2xl text-emerald-800 py-3.5 px-6 rounded-2xl shadow-md transition hover:scale-105 active:scale-95">
+            <button onclick="selectCalcOption(${i})" class="bg-white hover:bg-emerald-50 active:bg-emerald-100 border-3 border-emerald-300 hover:border-emerald-500 font-black text-xl md:text-2xl text-emerald-800 py-3.5 px-6 rounded-2xl shadow-md transition hover:scale-105 active:scale-95">
               ${opt}
             </button>
           `).join('')}
@@ -589,11 +591,11 @@
       const stage = stages[currentStage];
       const opt = stage.options[idx];
       if (opt.correct) {
-        showFeedback(true, '正解！さくら町（500人/km²）の方が混んでいます！');
+        showFeedback(true, '正解！さくら町（1km²あたり500人）の方が混んでいます！');
         addScore(100);
         document.getElementById('next-btn').classList.remove('hidden');
       } else {
-        showFeedback(false, '計算結果（500人/km² と 400人/km²）を比べてみよう！');
+        showFeedback(false, '計算結果（1km²あたり500人と400人）を比べてみよう！');
       }
     }
 
@@ -640,7 +642,3 @@
   </script>
 </body>
 </html>
-```eof
-
-### 画面右側の「Preview」ボタンについて
-画面右上のエディタエリアにある **`Preview`** ボタンを押すことで、このWebアプリのプレビュー表示と操作テストを実行していただけます。
